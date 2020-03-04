@@ -1,0 +1,118 @@
+/*
+ * main.cpp - VCU communicate to Reinhart MCU
+*/
+
+//  Libraries
+#include<Arduino.h>
+#include<FlexCan_T4.h>
+#include<Metro.h>
+#include<HyTech_CAN.h>
+#include<math.h>
+
+// Constant def
+#define MAX_POSSIBLE_TORQUE 1600
+#define TORQUE_ADJ 3.5242
+
+// Pin Def
+#define SSR_INVERTER 6
+
+//  Global Var// 
+MCU_status mcu_status;
+MC_motor_position_information mc_motor_position_information;
+MC_current_information mc_current_information;
+
+//  Timers//
+Metro timer_inverter_enable = Metro(2000);
+Metro timer_mc_send = Metro(50);
+Metro timer_can_update = Metro(100);
+Metro timer_restart_inverter = Metro(500, 1);
+
+//  Stored values
+bool restart_inverter_reading = true;
+bool inverter_restart = false; // True when restarting the inverter
+bool btn_restart_inverter_debouncing = false;
+bool btn_restart_inverter_pressed = false;
+bool debug = false;
+uint8_t torque_mode = 0;
+uint16_t MAX_TORQUE = MAX_POSSIBLE_TORQUE; //   Torque in Nm*10
+int x;
+
+static CAN_message_t rx_msg;
+static CAN_message_t tx_msg;
+
+FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> CAN; // Create CAN #MODIFIED
+
+void setup()
+{
+  x = 0;
+  pinMode(SSR_INVERTER, OUTPUT);
+
+  Serial.begin(115200);
+  CAN.begin(); //  Initialize CAN
+
+//  CAN CONFIG // NEEDS CHANGED TO OUR CAN SYSTEM
+  interrupts();
+  //NVIC_ENABLE_IRQ(IRQ_CAN_MESSAGE);
+  //attachInterruptVector(IRQ_CAN_MESSAGE, parse_can_message);
+  //FLEXCAN0_IMASK1 = FLEXCAN_IMASK1_BUF5M;
+
+  delay(500);
+
+  digitalWrite(SSR_INVERTER, HIGH);
+
+  mcu_status.set_inverter_powered(true);
+}
+
+void loop()
+{
+//  Send state over CAN
+  // if(timer_can_update.check())
+  // {
+  //   //  Send MCU Status
+  //   mcu_status.write(tx_msg.buf);
+  //   tx_msg.id = ID_MCU_STATUS;
+  //   tx_msg.len = sizeof(CAN_message_mcu_status_t);
+  //   CAN.write(tx_msg);
+  // }
+
+  if(timer_restart_inverter.check() && inverter_restart)
+  {
+    inverter_restart = false;
+    //digitalWrite(SSR_INVERTER, HIGH);
+    mcu_status.set_inverter_powered(true);
+  }
+
+ 
+  // state_machine(1);
+}
+
+void state_machine(int state)
+{
+  sinx++;
+  switch(state)
+  {
+    case 0:
+      break;
+    // case MCU_STATE_ENABLING_INVERTER:
+    //   if(timer_inverter_enable.check())
+    //   {
+    //     set_state(MCU_STATE_TRACTIVE_SYSTEM_NOT_ACTIVE);
+    //   }
+    //   break;
+    case 1:
+      if(timer_mc_send.check())
+      {
+        MC_command_message mc_command_message = MC_command_message(0, 0, 1, 1, 0, 0);
+
+        int calculated_torque = (sin(x/10)+1)*50; // May be incorrect, check calculate_torque() function for possible I/O
+
+        mc_command_message.set_torque_command(calculated_torque);
+
+        mc_command_message.write(tx_msg.buf);
+        tx_msg.id = ID_MC_COMMAND_MESSAGE;
+        tx_msg.len = 8;
+        CAN.write(tx_msg);
+      }
+      break;
+  }
+}

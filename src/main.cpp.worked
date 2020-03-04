@@ -1,0 +1,208 @@
+#include <Arduino.h>
+#include <FlexCAN_T4.h>
+#include <Metro.h>
+
+/******DEFINES*******/
+FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> CAN;
+uint8_t state = 0;                                     //basic state machine state
+uint8_t disableWithZeros[] = {0, 0, 0, 0, 0, 0, 0, 0}; //The message to disable the controller/cancel lockout
+uint8_t enableNoTorque[] = {0, 0, 0, 0, 0, 1, 0, 0};   //The message to enable the motor with zero torque
+uint8_t enableSmallTorque[] = {255, 2, 0, 0, 0, 1, 0, 0};   //The message to enable the motor with zero torque
+uint8_t clearAllFaults[] = {14, 0, 0, 0, 0, 0, 0, 0};  //The message to clear all faults in the controller, and also the reply if success
+Metro timer_clear_faults = Metro(5000);
+Metro timer_do_startup = Metro(2000);
+
+/*
+ * CAN ID definitions
+ */
+#define ID_MC_TEMPERATURES_1 0xA0
+#define ID_MC_TEMPERATURES_2 0xA1
+#define ID_MC_TEMPERATURES_3 0xA2
+#define ID_MC_ANALOG_INPUTS_VOLTAGES 0xA3
+#define ID_MC_DIGITAL_INPUT_STATUS 0xA4
+#define ID_MC_MOTOR_POSITION_INFORMATION 0xA5
+#define ID_MC_CURRENT_INFORMATION 0xA6
+#define ID_MC_VOLTAGE_INFORMATION 0xA7
+#define ID_MC_FLUX_INFORMATION 0xA8
+#define ID_MC_INTERNAL_VOLTAGES 0xA9
+#define ID_MC_INTERNAL_STATES 0xAA
+#define ID_MC_FAULT_CODES 0xAB
+#define ID_MC_TORQUE_TIMER_INFORMATION 0xAC
+#define ID_MC_MODULATION_INDEX_FLUX_WEAKENING_OUTPUT_INFORMATION 0xAD
+#define ID_MC_FIRMWARE_INFORMATION 0xAE
+#define ID_MC_DIAGNOSTIC_DATA 0xAF
+#define ID_MC_COMMAND_MESSAGE 0xC0
+#define ID_MC_READ_WRITE_PARAMETER_COMMAND 0xC1
+#define ID_MC_READ_WRITE_PARAMETER_RESPONSE 0xC2
+
+/*****PROTOTYPES*****/
+void writeControldisableWithZeros();
+void writeEnableNoTorque();
+void writeEnableSmallTorque();
+void clearErrors();
+void doStartup();
+void readBroadcast();
+void blinkLED();
+
+void setup(void)
+{
+    Serial.begin(115200);
+
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, LOW);
+    CAN.begin();
+    CAN.setBaudRate(250000);
+    CAN.mailboxStatus();
+}
+
+void loop()
+{
+    if (timer_do_startup.check() > 0)
+    {
+        state = 1;
+    }
+    if (timer_clear_faults.check() > 0)
+    {
+        state = 2;
+    }
+    switch (state)
+    {
+    case 0:
+        writeControldisableWithZeros();
+        break;
+    case 1:
+        doStartup();
+        state = 0;
+        break;
+    case 2:
+        //clearErrors();
+        state = 0;
+        break;
+    case 3:
+        writeEnableSmallTorque();
+        state = 0;
+        break;
+    default:
+        break;
+    }
+    readBroadcast();
+}
+
+void readBroadcast()
+{
+    CAN_message_t rxMsg;
+    if (CAN.read(rxMsg))
+    {
+        Serial.print("  ID: 0x");
+        Serial.print(rxMsg.id, HEX);
+        Serial.print(" DATA: ");
+        for (uint8_t i = 0; i < 8; i++)
+        {
+            Serial.print(rxMsg.buf[i]);
+            Serial.print(" ");
+        }
+        if (rxMsg.id == ID_MC_INTERNAL_STATES)
+        {
+            Serial.print("<< Internal States");
+        }
+        if (rxMsg.id == ID_MC_FAULT_CODES)
+        {
+            Serial.print("<< Fault Codes");
+        }
+        Serial.println("");
+    }
+    /*
+    if (rxMsg.id == ID_MC_READ_WRITE_PARAMETER_RESPONSE)
+    {
+        if (1)
+        {
+            Serial.println("*********Faults successfully cleared*********");
+        }
+    }
+    */
+}
+
+void blinkLED()
+{
+    digitalWrite(LED_BUILTIN, LOW);
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(30);
+    digitalWrite(LED_BUILTIN, LOW);
+    delay(30);
+}
+
+void writeControldisableWithZeros()
+{
+    CAN_message_t ctrlMsg;
+    ctrlMsg.len = 8;
+    ctrlMsg.id = 0xC0; //OUR CONTROLLER
+    memcpy(ctrlMsg.buf, disableWithZeros, sizeof(ctrlMsg.buf));
+    if (CAN.write(ctrlMsg) > 0)
+    {
+        Serial.println("000s");
+        blinkLED();
+    }
+    else
+    {
+        Serial.println("-FAILED-");
+        delay(50);
+    }
+}
+
+void doStartup()
+{
+    /* EXPLANATION from CAN manual section "2.2.2 CAN Message Sequence Example"
+    0. GA tech says you need to write torque once before disable idk
+    1. write control message to disableWithZeros
+    2. byte 4,5 = 1 with a torque value in 0,1
+    3. change the torque a bunch
+    4. disable inverter by writing byte 5 0 NO direction change
+    */
+    Serial.println("Attempting Startup");
+    delay(200);
+    writeEnableNoTorque();
+    writeControldisableWithZeros();
+    writeEnableNoTorque();
+    delay(500);
+}
+
+void writeEnableNoTorque()
+{
+    CAN_message_t ctrlMsg;
+    ctrlMsg.len = 8;
+    ctrlMsg.id = 0xC0; //OUR CONTROLLER
+    memcpy(ctrlMsg.buf, enableNoTorque, sizeof(ctrlMsg.buf));
+    CAN.write(ctrlMsg);
+    Serial.println("000s");
+    blinkLED();
+}
+
+void clearErrors()
+{
+    /*
+    1. address 0x0c1 
+    byte 0,1 = 20, byte 2 set to 1, 3 NA, 4,5 =0 to clear faults, 6,7 NA
+    2. look for msg 0x0c2
+    3.
+    */
+
+    CAN_message_t clearErrorsMsg;
+    clearErrorsMsg.len = 8;
+    clearErrorsMsg.id = ID_MC_READ_WRITE_PARAMETER_COMMAND; //OUR CONTROLLER
+    memcpy(clearErrorsMsg.buf, clearAllFaults, sizeof(clearErrorsMsg.buf));
+    CAN.write(clearErrorsMsg);
+    Serial.println("Attempted to clear faults");
+}
+
+void writeEnableSmallTorque(){
+    for(int i=0;i<100;i++){
+        CAN_message_t smallTorqueMsg;
+        smallTorqueMsg.len = 8;
+        smallTorqueMsg.id = ID_MC_READ_WRITE_PARAMETER_COMMAND; //OUR CONTROLLER
+        memcpy(smallTorqueMsg.buf, enableSmallTorque, sizeof(smallTorqueMsg.buf));
+        CAN.write(smallTorqueMsg);
+        Serial.println("GO");
+        readBroadcast();
+        delay(100);
+    }
+}
