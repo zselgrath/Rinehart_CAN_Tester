@@ -12,7 +12,7 @@
             "type": "platformio-debug",
             "request": "launch",
             "name": "PIO Debug",
-            "executable": "c:/GitHub/Rinehart CAN Tester/.pio/build/teensy40/firmware.elf",
+            "executable": "c:/GitHub/Rinehart_CAN_Tester/.pio/build/teensy40/firmware.elf",
             "toolchainBinDir": "C:/Users/zselg/.platformio/packages/toolchain-gccarmnoneeabi/bin",
             "preLaunchTask": {
                 "type": "PlatformIO",
@@ -24,7 +24,7 @@
             "type": "platformio-debug",
             "request": "launch",
             "name": "PIO Debug (skip Pre-Debug)",
-            "executable": "c:/GitHub/Rinehart CAN Tester/.pio/build/teensy40/firmware.elf",
+            "executable": "c:/GitHub/Rinehart_CAN_Tester/.pio/build/teensy40/firmware.elf",
             "toolchainBinDir": "C:/Users/zselg/.platformio/packages/toolchain-gccarmnoneeabi/bin",
             "internalConsoleOptions": "openOnSessionStart"
         }

@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+*.checksum
+*.elf
+*.dblite
+.pio/build/teensy40/firmware.hex
+.pio/build/teensy40/firmware.elf
+.pio/build/teensy40/.sconsign.py27.dblite
