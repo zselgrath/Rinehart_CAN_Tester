@@ -2,29 +2,11 @@
 #include <FlexCAN_T4.h>
 #include <Metro.h>
 
-//define this to have USB mouse control of the motor controller.
-#define USBMOUSE
-
-#ifdef USBMOUSE
-#include <USBHost_t36.h>
-//USB/Joystick Defines
-USBHost myusb;
-USBHub hub1(myusb);
-USBHIDParser hid1(myusb);
-JoystickController joysticks(myusb);
-USBDriver *drivers[] = {&hub1, &joysticks, &hid1};
-#define CNT_DEVICES (sizeof(drivers) / sizeof(drivers[0]))
-const char *driver_names[CNT_DEVICES] = {"Hub1", "joystick[0D]", "HID1"};
-bool driver_active[CNT_DEVICES] = {false, false, true};
-
-// Lets also look at HID Input devices
-USBHIDInput *hiddrivers[] = {&joysticks};
-#define CNT_HIDDEVICES (sizeof(hiddrivers) / sizeof(hiddrivers[0]))
-const char *hid_driver_names[CNT_DEVICES] = {"joystick[0H]"};
-bool hid_driver_active[CNT_DEVICES] = {true};
-#endif
-
 /******DEFINES*******/
+
+
+
+
 //button pins
 int button1Pin = 9;
 int button2Pin = 10;
@@ -36,7 +18,7 @@ FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> CAN;
 uint8_t state = 0;                                      //basic state machine state
 uint8_t disableWithZeros[] = {0, 0, 0, 0, 0, 0, 0, 0};  //The message to disable the controller/cancel lockout
 uint8_t enableNoTorque[] = {0, 0, 0, 0, 0, 1, 0, 0};    //The message to enable the motor with zero torque
-uint8_t enableSmallTorque[] = {0, 0, 0, 0, 1, 1, 0, 0}; //The message to enable the motor with small torque
+uint8_t enableSmallTorque[] = {0, 0, 0, 0, 0, 1, 0, 0}; //The message to enable the motor with small torque
 
 /*
  * CAN ID definitions
@@ -82,10 +64,6 @@ void setup(void)
     CAN.begin();
     CAN.setBaudRate(250000);
     CAN.mailboxStatus();
-#ifdef USBMOUSE
-    myusb.begin();
-#endif
-    while (!Serial); // wait for Arduino Serial Monitor
 }
 
 void loop()
