@@ -3,18 +3,22 @@
 #include <Metro.h>
 
 /******DEFINES*******/
+
+
+
+
 //button pins
 int button1Pin = 9;
 int button2Pin = 10;
 int button3Pin = 11;
-const int maxState = 3;
+const int maxState = 4;
 
 //objects
 FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> CAN;
-uint8_t state = 0;                                     //basic state machine state
-uint8_t disableWithZeros[] = {0, 0, 0, 0, 0, 0, 0, 0}; //The message to disable the controller/cancel lockout
-uint8_t enableNoTorque[] = {0, 0, 0, 0, 0, 1, 0, 0};   //The message to enable the motor with zero torque
-uint8_t enableSmallTorque[] = {0, 0, 0, 0, 1, 1, 0, 0};   //The message to enable the motor with small torque
+uint8_t state = 0;                                      //basic state machine state
+uint8_t disableWithZeros[] = {0, 0, 0, 0, 0, 0, 0, 0};  //The message to disable the controller/cancel lockout
+uint8_t enableNoTorque[] = {0, 0, 0, 0, 1, 1, 0, 0};    //The message to enable the motor with zero torque
+uint8_t enableSmallTorque[] = {0xD2, 0x04, 0, 0, 1, 1, 0, 0}; //The message to enable the motor with small torque
 
 /*
  * CAN ID definitions
@@ -42,6 +46,8 @@ uint8_t enableSmallTorque[] = {0, 0, 0, 0, 1, 1, 0, 0};   //The message to enabl
 /*****PROTOTYPES*****/
 void writeControldisableWithZeros();
 void writeEnableNoTorque();
+void idle();
+void writeEnableFWDNoTorque();
 void writeEnableSmallTorque();
 void clearErrors();
 void doStartup();
@@ -76,8 +82,15 @@ void loop()
         state = 2;
         break;
     case 2:
+        idle();
+        break;
+    case 3:
         writeEnableSmallTorque();
         break;
+    case 4:
+        //nothing
+        break;
+
     default:
         break;
     }
@@ -152,13 +165,16 @@ void doStartup()
     /* EXPLANATION from CAN manual section "2.2.2 CAN Message Sequence Example"
     0. GA tech says you need to write torque once before disable idk
     1. write control message to disableWithZeros
-    2. byte 4,5 = 1 with a torque value in 0,1
-    3. change the torque a bunch
-    4. disable inverter by writing byte 5 0 NO direction change
+    2. byte 5 = 1 with 0 torque value in 0,1
+    3. byte 4,5 = 1 with 0 torque value in 0,1 to switch to FWD dir (reverse in motor convetion right hand rule)
+    4. change the torque a bunch
+    5. disable inverter by writing byte 5 0 NO direction change
     */
     writeEnableNoTorque();
     writeControldisableWithZeros();
     writeEnableNoTorque();
+    //delay(50);
+    //writeEnableFWDNoTorque();
     //delay(500);
 }
 
@@ -184,6 +200,17 @@ void writeEnableSmallTorque()
     blinkLED();
 }
 
+void idle()
+{
+    CAN_message_t ctrlMsg;
+    ctrlMsg.len = 8;
+    ctrlMsg.id = 0xC0; //OUR CONTROLLER
+    memcpy(ctrlMsg.buf, enableNoTorque, sizeof(ctrlMsg.buf));
+    CAN.write(ctrlMsg);
+    Serial.println("----IDLE----");
+    blinkLED();
+}
+
 void getButtons()
 {
     if (digitalRead(button1Pin) == LOW)
@@ -200,9 +227,11 @@ void getButtons()
     }
     else if (digitalRead(button3Pin) == LOW)
     {
-        while(digitalRead(button3Pin) == LOW);
+        while (digitalRead(button3Pin) == LOW)
+            ;
         state++;
-        if (state > maxState){
+        if (state > maxState)
+        {
             state = 0;
         }
         Serial.print("Button to state ");

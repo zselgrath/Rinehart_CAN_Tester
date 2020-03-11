@@ -6,12 +6,12 @@
         {
             "name": "Win32",
             "includePath": [
-                "c:/GitHub/Rinehart CAN Tester/include",
-                "c:/GitHub/Rinehart CAN Tester/src",
+                "c:/GitHub/Rinehart_CAN_Tester/include",
+                "c:/GitHub/Rinehart_CAN_Tester/src",
                 "C:/Users/zselg/.platformio/packages/framework-arduinoteensy/libraries/Metro",
                 "C:/Users/zselg/.platformio/packages/framework-arduinoteensy/libraries/FlexCAN_T4",
                 "C:/Users/zselg/.platformio/packages/framework-arduinoteensy/cores/teensy4",
-                "c:/GitHub/Rinehart CAN Tester/lib/HyTech_CAN",
+                "c:/GitHub/Rinehart_CAN_Tester/lib/HyTech_CAN",
                 "C:/Users/zselg/.platformio/packages/framework-arduinoteensy/libraries/ADC",
                 "C:/Users/zselg/.platformio/packages/framework-arduinoteensy/libraries/AccelStepper/src",
                 "C:/Users/zselg/.platformio/packages/framework-arduinoteensy/libraries/Adafruit_CC3000",
@@ -117,12 +117,12 @@
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "c:/GitHub/Rinehart CAN Tester/include",
-                    "c:/GitHub/Rinehart CAN Tester/src",
+                    "c:/GitHub/Rinehart_CAN_Tester/include",
+                    "c:/GitHub/Rinehart_CAN_Tester/src",
                     "C:/Users/zselg/.platformio/packages/framework-arduinoteensy/libraries/Metro",
                     "C:/Users/zselg/.platformio/packages/framework-arduinoteensy/libraries/FlexCAN_T4",
                     "C:/Users/zselg/.platformio/packages/framework-arduinoteensy/cores/teensy4",
-                    "c:/GitHub/Rinehart CAN Tester/lib/HyTech_CAN",
+                    "c:/GitHub/Rinehart_CAN_Tester/lib/HyTech_CAN",
                     "C:/Users/zselg/.platformio/packages/framework-arduinoteensy/libraries/ADC",
                     "C:/Users/zselg/.platformio/packages/framework-arduinoteensy/libraries/AccelStepper/src",
                     "C:/Users/zselg/.platformio/packages/framework-arduinoteensy/libraries/Adafruit_CC3000",
